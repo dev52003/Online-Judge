@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-4 mb-4">Welcome to Online Judge</h1>
+    
+    {% if user.is_authenticated %}
+        <div class="card auth-card">
+            <div class="card-body">
+                <h3>Hello, {{ user.username }}!</h3>
+                <p class="lead">Ready to solve some problems?</p>
+                <a href="{% url 'profile' %}" class="btn btn-primary">View Profile</a>
+            </div>
+        </div>
+    {% else %}
+        <div class="card auth-card">
+            <div class="card-body">
+                <h3>Get Started</h3>
+                <p class="lead">Join our community of coders</p>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'login' %}" class="btn btn-primary">Login</a>
+                    <a href="{% url 'register' %}" class="btn btn-outline-primary">Register</a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

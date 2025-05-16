@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<div class="card auth-card">
+    <div class="card-body">
+        <h2 class="card-title text-center mb-4">User Profile</h2>
+        
+        <div class="text-center mb-4">
+            <div class="mb-3">
+                <svg width="80" height="80" class="rounded-circle bg-light p-2" fill="#6c757d" viewBox="0 0 16 16">
+                    <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
+                </svg>
+            </div>
+            <h3>{{ user.username }}</h3>
+            <p class="text-muted">Member since {{ user.date_joined|date:"F Y" }}</p>
+        </div>
+        
+        <div class="d-grid gap-2">
+            <a href="#" class="btn btn-outline-primary">Edit Profile</a>
+            <!-- Replace link with form for logout -->
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger w-100">Logout</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
