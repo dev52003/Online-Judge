@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem List - Online Judge</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <style>
+        .problem-card {
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            transition: transform 0.2s;
+        }
+        .problem-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .problem-title {
+            color: #2c3e50;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .problem-title:hover {
+            color: #1a252f;
+            text-decoration: underline;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #2c3e50;
+        }
+        .difficulty-badge {
+            font-size: 0.8rem;
+            padding: 0.35em 0.65em;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #2c3e50;">
+        <div class="container">
+            <a class="navbar-brand fs-3 fw-bold" href="#">Online Judge</a>
+            <div class="d-flex">
+                <a href="/auth/logout/" class="btn btn-outline-light">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="fw-bold">Problem List</h1>
+                <hr>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Problems Column -->
+            <div class="col-lg-8">
+                {% for problem in problems %}
+                <div class="card problem-card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="card-title mb-1">
+                                    <a href="/problems/{{problem.id}}/" class="problem-title">
+                                        {{ forloop.counter }}. {{ problem.title }}
+                                    </a>
+                                </h5>
+                                <p class="text-muted small mb-0">Problem ID: {{ problem.id }}</p>
+                            </div>
+                            <span class="badge rounded-pill difficulty-badge 
+                                {% if problem.difficulty == 'Easy' %}bg-success
+                                {% elif problem.difficulty == 'Medium' %}bg-warning text-dark
+                                {% else %}bg-danger
+                                {% endif %}">
+                                {{ problem.difficulty }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Sidebar Column -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Filters</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="mb-3">Difficulty</h6>
+                        <div class="nav flex-column nav-pills">
+                            <a class="nav-link {% if not request.GET.difficulty %}active{% endif %}" href="{% url 'problems-list' %}">All Problems</a>
+                            <a class="nav-link {% if request.GET.difficulty == 'Easy' %}active{% endif %}" href="{% url 'problems-list' %}?difficulty=Easy">Easy</a>
+                            <a class="nav-link {% if request.GET.difficulty == 'Medium' %}active{% endif %}" href="{% url 'problems-list' %}?difficulty=Medium">Medium</a>
+                            <a class="nav-link {% if request.GET.difficulty == 'Hard' %}active{% endif %}" href="{% url 'problems-list' %}?difficulty=Hard">Hard</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

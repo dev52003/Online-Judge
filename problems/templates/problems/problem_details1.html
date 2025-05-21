@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ problems.title }}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f2f5; /* match gray-100 */
+            padding-top: 56px;
+        }
+        .card {
+            margin-top: 30px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .example-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        h2 {
+            font-size: 2rem;
+        }
+        .lead {
+            font-size: 1.1rem;
+            color: #4a4a4a;
+        }
+        .section-title {
+            margin-top: 1.5rem;
+        }
+        .navbar {
+            background-color: #2c3e50 !important; /* dark blue */
+        }
+        .navbar-brand, .nav-link {
+            color: #ffffff !important;
+        }
+        .nav-link:hover {
+            color: #dcdcdc !important;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <div class="container">
+        <a class="navbar-brand" href="#">Online Judge</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive"
+                aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarResponsive">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'problems-list' %}">Problems</a>
+                </li>
+                <!-- Future menu items -->
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title">{{ problems.title }}</h2>
+            <p class="lead">{{ problems.description }}</p>
+            <hr>
+            <p><strong>Difficulty:</strong>
+                {% if problems.difficulty == "Easy" %}
+                    <span class="badge badge-success">{{ problems.difficulty }}</span>
+                {% elif problems.difficulty == "Medium" %}
+                    <span class="badge badge-warning">{{ problems.difficulty }}</span>
+                {% else %}
+                    <span class="badge badge-danger">{{ problems.difficulty }}</span>
+                {% endif %}
+            </p>
+
+            <div class="example-section mt-4">
+                <h5>Example Input</h5>
+                <pre>{{ problems.example_input }}</pre>
+            </div>
+
+            <div class="example-section mt-4">
+                <h5>Example Output</h5>
+                <pre>{{ problems.example_output }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+</body>
+</html>
