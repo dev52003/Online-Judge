@@ -9,7 +9,6 @@ from pathlib import Path
 
 
 
-
 def submit(request,id):
     if request.method == "POST":
         form = CodeSubmissionForm(request.POST)

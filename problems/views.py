@@ -14,11 +14,23 @@ def problems_list(request):
     return render(request, 'problems_list1.html', {'problems': problems})
 
 @login_required
+@login_required
 def problem_details(request, id):
     problems = Problem.objects.get(id=id)
-    form = CodeSubmissionForm()
+    output = None  # To store code output
+    if request.method == 'POST':
+        form = CodeSubmissionForm(request.POST)
+        if form.is_valid():
+            code = form.cleaned_data['code']
+            language = form.cleaned_data['language']
+            output = submit(code, language)  # Use the submit function to run the code
+    else:
+        form = CodeSubmissionForm()
+
     context = {
         'problems': problems,
         'form': form,
+        'output': output,  # Pass output to the template
     }
     return render(request, 'submit/cp.html', context)
+
