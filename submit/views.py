@@ -6,47 +6,96 @@ from problems.models import Problem
 import uuid
 import subprocess
 from pathlib import Path
+from django.http import JsonResponse
 
-
-
-def submit(request,id):
+def submit(request, id):
     if request.method == "POST":
         form = CodeSubmissionForm(request.POST)
         if form.is_valid():
-            submission = form.save()
-            print(submission.language)
-            print(submission.code)
+            submission = form.save(commit=False)
             problem_no = Problem.objects.get(id=id)
             submission.input_data = problem_no.testcase_inputs
             submission.expected_output = problem_no.ex_output
             submission.save()
+            
             output = run_code(
-                submission.language, submission.code, submission.input_data, submission.expected_output,
+                submission.language, 
+                submission.code, 
+                submission.input_data, 
+                submission.expected_output,
             )
             submission.output_data = output
-        # submission.expected_output = ex_outputs
-         #   submission.input_data = input
-        
             
-        try:
+            try:
                 if submission.output_data.strip() == submission.expected_output.strip():
                     submission.verdict = 'ACCEPTED'
                 else:
                     submission.verdict = 'REJECTED'
-        except Exception as e:
+            except Exception as e:
                 submission.output_data = str(e)
                 submission.verdict = 'Error'
-        submission.save()
-        return render(request, "submit/result.html", {"submission": submission})
-    else:
-        form = CodeSubmissionForm()
+            submission.save()
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'verdict': submission.verdict,
+                    'input': submission.input_data,
+                    'output': submission.output_data,
+                    'error': getattr(submission, 'error_message', '')
+                })
+            return render(request, "submit/result.html", {"submission": submission})
+    
+    # Handle invalid form or GET request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    form = CodeSubmissionForm()
     problems = Problem.objects.get(id=id)
     context = {
-        'problems' : problems,
-        'form' : form,
+        'problems': problems,
+        'form': form,
     }
     return render(request, 'submit/cp.html', context)
-    return render(request, "submit/cp.html", {"form": form})
+
+
+# def submit(request,id):
+#     if request.method == "POST":
+#         form = CodeSubmissionForm(request.POST)
+#         if form.is_valid():
+#             submission = form.save()
+#             print(submission.language)
+#             print(submission.code)
+#             problem_no = Problem.objects.get(id=id)
+#             submission.input_data = problem_no.testcase_inputs
+#             submission.expected_output = problem_no.ex_output
+#             submission.save()
+#             output = run_code(
+#                 submission.language, submission.code, submission.input_data, submission.expected_output,
+#             )
+#             submission.output_data = output
+#         # submission.expected_output = ex_outputs
+#          #   submission.input_data = input
+        
+            
+#         try:
+#                 if submission.output_data.strip() == submission.expected_output.strip():
+#                     submission.verdict = 'ACCEPTED'
+#                 else:
+#                     submission.verdict = 'REJECTED'
+#         except Exception as e:
+#                 submission.output_data = str(e)
+#                 submission.verdict = 'Error'
+#         submission.save()
+#         return render(request, "submit/result.html", {"submission": submission})
+#     else:
+#         form = CodeSubmissionForm()
+#     problems = Problem.objects.get(id=id)
+#     context = {
+#         'problems' : problems,
+#         'form' : form,
+#     }
+#     return render(request, 'submit/cp.html', context)
+#     return render(request, "submit/cp.html", {"form": form})
 
 
 def run_code(language, code, input_data,expected_output):

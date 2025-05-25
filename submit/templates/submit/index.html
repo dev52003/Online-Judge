@@ -24,15 +24,59 @@
         max-width: 800px;
         margin: 20px auto;
         padding: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-right: 10px;
+        transition: background-color 0.3s;
     }
     
     #submit-btn {
-        padding: 8px 16px;
         background: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
+    }
+    
+    #submit-btn:hover {
+        background-color: #45a049;
+    }
+    
+    #run-btn {
+        background: #2196F3;
+    }
+    
+    #run-btn:hover {
+        background-color: #0b7dda;
+    }
+    
+    #result-container {
+        display: none;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .result-title {
+        color: #4CAF50;
+        margin-bottom: 20px;
+    }
+    
+    pre {
+        background-color: #f9f9f9;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
     }
     </style>
     <link rel="stylesheet" href="{% static 'styles.css' %}">
@@ -45,8 +89,18 @@
         {% csrf_token %}
         {{ form.language }}
         {{ form.code }}
-        <button type="submit" id="submit-btn">Submit</button>
+        <div>
+            <button type="button" id="run-btn" class="btn">Run Code</button>
+            <button type="submit" id="submit-btn" class="btn">Submit</button>
+        </div>
     </form>
+
+    <div id="result-container">
+        <h2 class="result-title">Execution Result</h2>
+        <p><strong>Verdict:</strong> <pre id="result-verdict"></pre></p>
+        <p><strong>Input:</strong> <pre id="result-input"></pre></p>
+        <p><strong>Output:</strong> <pre id="result-output"></pre></p>
+    </div>
 
     <!-- CodeMirror JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
@@ -60,18 +114,17 @@
         const editor = CodeMirror.fromTextArea(textarea, {
             lineNumbers: true,
             theme: 'dracula',
-            mode: 'text/x-c++src',  // Default mode
+            mode: 'text/x-c++src',
             indentUnit: 4
         });
 
-        // Get language select element
-        const languageSelect = document.querySelector('id_language');
-        
+        // Get elements
+        const languageSelect = document.getElementById('id_language');
+        const runBtn = document.getElementById('run-btn');
+        const resultContainer = document.getElementById('result-container');
+
         if (languageSelect) {
-            // Set initial mode based on selected value
             updateEditorMode();
-            
-            // Update mode when selection changes
             languageSelect.addEventListener('change', updateEditorMode);
         }
 
@@ -82,24 +135,55 @@
                 'cpp': 'text/x-c++src'
             };
             const mode = modeMap[languageSelect.value] || 'text/x-c++src';
-            
-            // Force mode reload (key fix for C/C++)
-            editor.setOption('mode', null);  // Reset first
             editor.setOption('mode', mode);
-            editor.refresh();  // Ensure proper rendering
         }
 
-        // Form submission handling (unchanged)
-        const form = document.getElementById('code-form');
-        form.addEventListener('submit', function() {
+        // Run button functionality
+        runBtn.addEventListener('click', function() {
             editor.save();
-        });
-
-        const submitBtn = document.getElementById('submit-btn');
-        submitBtn.addEventListener('click', function(e) {
-            editor.save();
-        });
+            
+            // Get the problem ID from URL
+            const problemId = window.location.pathname.split('/').filter(Boolean).pop();
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('language', languageSelect.value);
+            formData.append('code', editor.getValue());
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            // Show loading state
+            resultContainer.style.display = 'block';
+            document.getElementById('result-verdict').textContent = "Running...";
+            document.getElementById('result-input').textContent = "Loading...";
+            document.getElementById('result-output').textContent = "Loading...";
+            
+            // Call the same view but handle response differently
+            fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'  // Explicitly request JSON
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        document.getElementById('result-verdict').textContent = data.verdict || "No verdict";
+        document.getElementById('result-input').textContent = data.input || "No input";
+        document.getElementById('result-output').textContent = data.output || data.error || "No output";
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('result-verdict').textContent = "Error";
+        document.getElementById('result-output').textContent = "Error occurred: " + error.message;
     });
-</script>
+});
+    });
+    </script>
 </body>
 </html>
