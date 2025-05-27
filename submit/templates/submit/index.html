@@ -140,38 +140,30 @@
 
         // Run button functionality
         runBtn.addEventListener('click', function() {
-            editor.save();
-            
-            // Get the problem ID from URL
-            const problemId = window.location.pathname.split('/').filter(Boolean).pop();
-            
-            // Create form data
-            const formData = new FormData();
-            formData.append('language', languageSelect.value);
-            formData.append('code', editor.getValue());
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-            
-            // Show loading state
-            resultContainer.style.display = 'block';
-            document.getElementById('result-verdict').textContent = "Running...";
-            document.getElementById('result-input').textContent = "Loading...";
-            document.getElementById('result-output').textContent = "Loading...";
-            
-            // Call the same view but handle response differently
-            fetch(window.location.href, {
+    editor.save();
+    
+    const problemId = window.location.pathname.split('/').filter(Boolean).pop();
+    
+    const formData = new FormData();
+    formData.append('language', languageSelect.value);
+    formData.append('code', editor.getValue());
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    formData.append('action', 'run');  // <-- THIS IS THE CRITICAL LINE
+    
+    resultContainer.style.display = 'block';
+    document.getElementById('result-verdict').textContent = "Running...";
+    document.getElementById('result-input').textContent = "Loading...";
+    document.getElementById('result-output').textContent = "Loading...";
+    
+    fetch(window.location.href, {
         method: 'POST',
         body: formData,
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'  // Explicitly request JSON
+            'Accept': 'application/json'
         }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
+    .then(response => response.ok ? response.json() : Promise.reject('Network error'))
     .then(data => {
         document.getElementById('result-verdict').textContent = data.verdict || "No verdict";
         document.getElementById('result-input').textContent = data.input || "No input";
@@ -180,7 +172,7 @@
     .catch(error => {
         console.error('Error:', error);
         document.getElementById('result-verdict').textContent = "Error";
-        document.getElementById('result-output').textContent = "Error occurred: " + error.message;
+        document.getElementById('result-output').textContent = "Error occurred: " + error;
     });
 });
     });

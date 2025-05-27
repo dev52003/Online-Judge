@@ -8,54 +8,55 @@ import subprocess
 from pathlib import Path
 from django.http import JsonResponse
 
-def submit(request, id):
-    if request.method == "POST":
-        form = CodeSubmissionForm(request.POST)
-        if form.is_valid():
-            submission = form.save(commit=False)
-            problem_no = Problem.objects.get(id=id)
-            submission.input_data = problem_no.testcase_inputs
-            submission.expected_output = problem_no.ex_output
-            submission.save()
-            
-            output = run_code(
-                submission.language, 
-                submission.code, 
-                submission.input_data, 
-                submission.expected_output,
-            )
-            submission.output_data = output
-            
-            try:
-                if submission.output_data.strip() == submission.expected_output.strip():
-                    submission.verdict = 'ACCEPTED'
-                else:
-                    submission.verdict = 'REJECTED'
-            except Exception as e:
-                submission.output_data = str(e)
-                submission.verdict = 'Error'
-            submission.save()
 
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'verdict': submission.verdict,
-                    'input': submission.input_data,
-                    'output': submission.output_data,
-                    'error': getattr(submission, 'error_message', '')
-                })
-            return render(request, "submit/result.html", {"submission": submission})
+# def submit(request, id):
+#     if request.method == "POST":
+#         form = CodeSubmissionForm(request.POST)
+#         if form.is_valid():
+#             submission = form.save(commit=False)
+#             problem_no = Problem.objects.get(id=id)
+#             submission.input_data = problem_no.testcase_inputs
+#             submission.expected_output = problem_no.ex_output
+#             submission.save()
+            
+#             output = run_code(
+#                 submission.language, 
+#                 submission.code, 
+#                 submission.input_data, 
+#                 submission.expected_output,
+#             )
+#             submission.output_data = output
+            
+#             try:
+#                 if submission.output_data.strip() == submission.expected_output.strip():
+#                     submission.verdict = 'ACCEPTED'
+#                 else:
+#                     submission.verdict = 'REJECTED'
+#             except Exception as e:
+#                 submission.output_data = str(e)
+#                 submission.verdict = 'Error'
+#             submission.save()
+
+#             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+#                 return JsonResponse({
+#                     'verdict': submission.verdict,
+#                     'input': submission.input_data,
+#                     'output': submission.output_data,
+#                     'error': getattr(submission, 'error_message', '')
+#                 })
+#             return render(request, "submit/result.html", {"submission": submission})
     
-    # Handle invalid form or GET request
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'error': 'Invalid request'}, status=400)
+#     # Handle invalid form or GET request
+#     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+#         return JsonResponse({'error': 'Invalid request'}, status=400)
     
-    form = CodeSubmissionForm()
-    problems = Problem.objects.get(id=id)
-    context = {
-        'problems': problems,
-        'form': form,
-    }
-    return render(request, 'submit/cp.html', context)
+#     form = CodeSubmissionForm()
+#     problems = Problem.objects.get(id=id)
+#     context = {
+#         'problems': problems,
+#         'form': form,
+#     }
+#     return render(request, 'submit/cp.html', context)
 
 
 # def submit(request,id):
@@ -97,10 +98,84 @@ def submit(request, id):
 #     return render(request, 'submit/cp.html', context)
 #     return render(request, "submit/cp.html", {"form": form})
 
+def submit(request, id):
+    if request.method == "POST":
+        form = CodeSubmissionForm(request.POST)
+        if form.is_valid():
+            submission = form.save(commit=False)
+            problem = Problem.objects.get(id=id)
+            action = request.POST.get("action", "submit")  # "run" or "submit"
 
-def run_code(language, code, input_data,expected_output):
+            # Get test cases based on action
+            if action == "run":
+                testcases = problem.testcases.filter(is_sample=True).order_by("order")
+            else:
+                testcases = problem.testcases.all().order_by("order")
+
+            # Initialize variables to store combined results
+            combined_input = []
+            combined_output = []
+            combined_expected = []
+            all_passed = True
+
+            # Process each test case individually
+            for testcase in testcases:
+                current_input = testcase.input_data
+                current_expected = testcase.expected_output
+
+                # Run code for this test case
+                current_output = run_code(
+                    submission.language,
+                    submission.code,
+                    current_input,
+                    current_expected,
+                )
+
+                # Check if output matches expected
+                try:
+                    if current_output.strip() != current_expected.strip():
+                        all_passed = False
+                except Exception as e:
+                    current_output = str(e)
+                    all_passed = False
+
+                # Collect results
+                combined_input.append(current_input)
+                combined_output.append(current_output)
+                combined_expected.append(current_expected)
+
+            # Save final submission with combined results
+            submission.input_data = "\n".join(combined_input)
+            submission.output_data = "\n".join(combined_output)
+            submission.expected_output = "\n".join(combined_expected)
+            submission.verdict = 'ACCEPTED' if all_passed else 'REJECTED'
+            submission.save()
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'verdict': submission.verdict,
+                    'input': submission.input_data,
+                    'output': submission.output_data,
+                    'error': getattr(submission, 'error_message', '')
+                })
+            return render(request, "submit/result.html", {"submission": submission})
+
+    # Rest remains unchanged
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    form = CodeSubmissionForm()
+    problems = Problem.objects.get(id=id)
+    context = {
+        'problems': problems,
+        'form': form,
+    }
+    return render(request, 'submit/cp.html', context)
+
+# The run_code function remains exactly the same
+def run_code(language, code, input_data, expected_output):
     project_path = Path(settings.BASE_DIR)
-    directories = ["codes", "inputs", "outputs","ex_outputs"]
+    directories = ["codes", "inputs", "outputs", "ex_outputs"]
 
     for directory in directories:
         dir_path = project_path / directory
@@ -134,7 +209,7 @@ def run_code(language, code, input_data,expected_output):
         ex_outputs_file.write(expected_output)
 
     with open(output_file_path, "w") as output_file:
-        pass  # This will create an empty file
+        pass  # create empty output file
 
     if language == "cpp":
         executable_path = codes_dir / unique
@@ -150,7 +225,6 @@ def run_code(language, code, input_data,expected_output):
                         stdout=output_file,
                     )
     elif language == "py":
-        # Code for executing Python script
         with open(input_file_path, "r") as input_file:
             with open(output_file_path, "w") as output_file:
                 subprocess.run(
@@ -159,14 +233,80 @@ def run_code(language, code, input_data,expected_output):
                     stdout=output_file,
                 )
 
-    # Read the output from the output file
     with open(output_file_path, "r") as output_file:
         output_data = output_file.read()
 
-    with open(ex_outputs_file_path, "r") as ex_outputs_file:
-        ex_outputs = ex_outputs_file.read()
-
-    with open(input_file_path, "r") as input_file:
-        input_data = input_file.read() 
-        
     return output_data
+
+# def run_code(language, code, input_data,expected_output):
+#     project_path = Path(settings.BASE_DIR)
+#     directories = ["codes", "inputs", "outputs","ex_outputs"]
+
+#     for directory in directories:
+#         dir_path = project_path / directory
+#         if not dir_path.exists():
+#             dir_path.mkdir(parents=True, exist_ok=True)
+
+#     codes_dir = project_path / "codes"
+#     inputs_dir = project_path / "inputs"
+#     outputs_dir = project_path / "outputs"
+#     ex_outputs_dir = project_path / "ex_outputs"
+
+#     unique = str(uuid.uuid4())
+
+#     code_file_name = f"{unique}.{language}"
+#     input_file_name = f"{unique}.txt"
+#     output_file_name = f"{unique}.txt"
+#     ex_outputs_file_name = f"{unique}.txt"
+
+#     code_file_path = codes_dir / code_file_name
+#     input_file_path = inputs_dir / input_file_name
+#     output_file_path = outputs_dir / output_file_name
+#     ex_outputs_file_path = ex_outputs_dir / ex_outputs_file_name
+
+#     with open(code_file_path, "w") as code_file:
+#         code_file.write(code)
+
+#     with open(input_file_path, "w") as input_file:
+#         input_file.write(input_data)
+
+#     with open(ex_outputs_file_path, "w") as ex_outputs_file:
+#         ex_outputs_file.write(expected_output)
+
+#     with open(output_file_path, "w") as output_file:
+#         pass  # This will create an empty file
+
+#     if language == "cpp":
+#         executable_path = codes_dir / unique
+#         compile_result = subprocess.run(
+#             ["g++", str(code_file_path), "-o", str(executable_path)]
+#         )
+#         if compile_result.returncode == 0:
+#             with open(input_file_path, "r") as input_file:
+#                 with open(output_file_path, "w") as output_file:
+#                     subprocess.run(
+#                         [str(executable_path)],
+#                         stdin=input_file,
+#                         stdout=output_file,
+#                     )
+#     elif language == "py":
+#         # Code for executing Python script
+#         with open(input_file_path, "r") as input_file:
+#             with open(output_file_path, "w") as output_file:
+#                 subprocess.run(
+#                     ["python3", str(code_file_path)],
+#                     stdin=input_file,
+#                     stdout=output_file,
+#                 )
+
+#     # Read the output from the output file
+#     with open(output_file_path, "r") as output_file:
+#         output_data = output_file.read()
+
+#     with open(ex_outputs_file_path, "r") as ex_outputs_file:
+#         ex_outputs = ex_outputs_file.read()
+
+#     with open(input_file_path, "r") as input_file:
+#         input_data = input_file.read() 
+        
+#     return output_data
