@@ -78,6 +78,12 @@
         white-space: pre-wrap;
         word-wrap: break-word;
     }
+    
+    .empty-code-error {
+        color: #f44336;
+        margin-top: 10px;
+        display: none;
+    }
     </style>
     <link rel="stylesheet" href="{% static 'styles.css' %}">
     <!-- CodeMirror CSS -->
@@ -92,6 +98,9 @@
         <div>
             <button type="button" id="run-btn" class="btn">Run Code</button>
             <button type="submit" id="submit-btn" class="btn">Submit</button>
+        </div>
+        <div id="empty-code-error" class="empty-code-error">
+            Please write some code before submitting.
         </div>
     </form>
 
@@ -121,7 +130,9 @@
         // Get elements
         const languageSelect = document.getElementById('id_language');
         const runBtn = document.getElementById('run-btn');
+        const submitBtn = document.getElementById('submit-btn');
         const resultContainer = document.getElementById('result-container');
+        const emptyCodeError = document.getElementById('empty-code-error');
 
         if (languageSelect) {
             updateEditorMode();
@@ -138,43 +149,64 @@
             editor.setOption('mode', mode);
         }
 
+        function validateAndSubmit(action) {
+            editor.save();
+            const code = editor.getValue().trim();
+            
+            if (!code) {
+                emptyCodeError.style.display = 'block';
+                return false;
+            }
+            
+            emptyCodeError.style.display = 'none';
+            
+            const problemId = window.location.pathname.split('/').filter(Boolean).pop();
+            
+            const formData = new FormData();
+            formData.append('language', languageSelect.value);
+            formData.append('code', code);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            formData.append('action', action);
+            
+            resultContainer.style.display = 'block';
+            document.getElementById('result-verdict').textContent = "Running...";
+            document.getElementById('result-input').textContent = "Loading...";
+            document.getElementById('result-output').textContent = "Loading...";
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.ok ? response.json() : Promise.reject('Network error'))
+            .then(data => {
+                document.getElementById('result-verdict').textContent = data.verdict || "No verdict";
+                document.getElementById('result-input').textContent = data.input || "No input";
+                document.getElementById('result-output').textContent = data.output || data.error || "No output";
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result-verdict').textContent = "Error";
+                document.getElementById('result-output').textContent = "Error occurred while processing your request";
+            });
+            
+            return true;
+        }
+
         // Run button functionality
         runBtn.addEventListener('click', function() {
-    editor.save();
-    
-    const problemId = window.location.pathname.split('/').filter(Boolean).pop();
-    
-    const formData = new FormData();
-    formData.append('language', languageSelect.value);
-    formData.append('code', editor.getValue());
-    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-    formData.append('action', 'run');  // <-- THIS IS THE CRITICAL LINE
-    
-    resultContainer.style.display = 'block';
-    document.getElementById('result-verdict').textContent = "Running...";
-    document.getElementById('result-input').textContent = "Loading...";
-    document.getElementById('result-output').textContent = "Loading...";
-    
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.ok ? response.json() : Promise.reject('Network error'))
-    .then(data => {
-        document.getElementById('result-verdict').textContent = data.verdict || "No verdict";
-        document.getElementById('result-input').textContent = data.input || "No input";
-        document.getElementById('result-output').textContent = data.output || data.error || "No output";
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('result-verdict').textContent = "Error";
-        document.getElementById('result-output').textContent = "Error occurred: " + error;
-    });
-});
+            validateAndSubmit('run');
+        });
+
+        // Submit button functionality
+        submitBtn.addEventListener('click', function(e) {
+            if (!validateAndSubmit('submit')) {
+                e.preventDefault();
+            }
+        });
     });
     </script>
 </body>
