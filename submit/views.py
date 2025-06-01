@@ -209,7 +209,28 @@ def run_code(language, code, input_data, expected_output):
                     )
                     if run_result.returncode != 0:
                         error_message = run_result.stderr
+        elif language == "c":  # <-- add this block for C
+            executable_path = codes_dir / unique
+            compile_result = subprocess.run(
+                ["gcc", str(code_file_path), "-o", str(executable_path)],
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            if compile_result.returncode != 0:
+                error_message = compile_result.stderr
+                raise subprocess.CalledProcessError(compile_result.returncode, compile_result.args)
 
+            with open(input_file_path, "r") as input_file:
+                with open(output_file_path, "w") as output_file:
+                    run_result = subprocess.run(
+                        [str(executable_path)],
+                        stdin=input_file,
+                        stdout=output_file,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                    if run_result.returncode != 0:
+                        error_message = run_result.stderr
         elif language == "py":
             with open(input_file_path, "r") as input_file:
                 with open(output_file_path, "w") as output_file:
