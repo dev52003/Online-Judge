@@ -56,6 +56,29 @@ def submit(request, id):
             submission = form.save(commit=False)
             problem = Problem.objects.get(id=id)
             action = request.POST.get("action", "submit")
+            custom_input = request.POST.get("custom_input", None)
+
+            # Handle custom test case
+            if custom_input is not None:
+                current_output = run_code(
+                    submission.language,
+                    submission.code,
+                    custom_input,
+                    "Custom test - no expected output comparison"
+                )
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'verdict': 'CUSTOM_TEST',
+                        'input': custom_input,
+                        'output': current_output,
+                        'error': current_output if "error" in current_output.lower() or "exception" in current_output.lower() else '',
+                    })
+                
+                return render(request, "submit/result.html", {
+                    "submission": submission,
+                    "problem": problem
+                })
 
             # Get test cases based on action
             testcases = problem.testcases.filter(is_sample=True).order_by("order") if action == "run" \
@@ -93,37 +116,38 @@ def submit(request, id):
                 combined_output.append(current_output)
                 combined_expected.append(current_expected)
 
-            # Save submission results
-            submission.input_data = "\n".join(combined_input)
-            submission.output_data = "\n".join(combined_output)
-            submission.expected_output = "\n".join(combined_expected)
-            submission.verdict = 'ACCEPTED' if all_passed else 'REJECTED'
-            
-            if error_message:
-                submission.error_message = error_message
-            
-            # Get AI review only for submissions (not test runs)
-            if action == "submit":
-                cache_key = f"ai_reviews_{request.user.id if request.user.is_authenticated else 'anon'}"
-                review_count = cache.get(cache_key, 0)
+            # Save submission results (only for non-custom tests)
+            if custom_input is None:
+                submission.input_data = "\n".join(combined_input)
+                submission.output_data = "\n".join(combined_output)
+                submission.expected_output = "\n".join(combined_expected)
+                submission.verdict = 'ACCEPTED' if all_passed else 'REJECTED'
                 
-                if review_count < 5:  # Limit to 5 reviews per hour
-                    submission.ai_review = get_ai_review(
-                        submission.code,
-                        submission.language,
-                        problem.description
-                    )
-                    cache.set(cache_key, review_count + 1, 3600)  # 1 hour expiry
-                else:
-                    submission.ai_review = "Hourly review limit reached (5 max)"
-            
-            submission.save()
+                if error_message:
+                    submission.error_message = error_message
+                
+                # Get AI review only for submissions (not test runs)
+                if action == "submit":
+                    cache_key = f"ai_reviews_{request.user.id if request.user.is_authenticated else 'anon'}"
+                    review_count = cache.get(cache_key, 0)
+                    
+                    if review_count < 5:  # Limit to 5 reviews per hour
+                        submission.ai_review = get_ai_review(
+                            submission.code,
+                            submission.language,
+                            problem.description
+                        )
+                        cache.set(cache_key, review_count + 1, 3600)  # 1 hour expiry
+                    else:
+                        submission.ai_review = "Hourly review limit reached (5 max)"
+                
+                submission.save()
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
-                    'verdict': submission.verdict,
-                    'input': submission.input_data,
-                    'output': submission.output_data,
+                    'verdict': submission.verdict if custom_input is None else 'CUSTOM_TEST',
+                    'input': submission.input_data if custom_input is None else custom_input,
+                    'output': submission.output_data if custom_input is None else combined_output[0] if combined_output else current_output,
                     'error': error_message if error_message else '',
                     'ai_review': submission.ai_review if hasattr(submission, 'ai_review') else None
                 })

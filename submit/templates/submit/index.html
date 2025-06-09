@@ -84,6 +84,36 @@
         margin-top: 10px;
         display: none;
     }
+    
+    .test-case-toggle {
+        color: #2196F3;
+        cursor: pointer;
+        margin: 10px 0;
+        display: inline-block;
+    }
+    
+    .test-case-toggle:hover {
+        text-decoration: underline;
+    }
+    
+    #custom-test-input-container {
+        margin: 15px 0;
+        display: none;
+    }
+    
+    #custom-test-input {
+        width: 100%;
+        min-height: 100px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: monospace;
+        margin-bottom: 10px;
+    }
+    
+    .run-options {
+        margin: 15px 0;
+    }
     </style>
     <link rel="stylesheet" href="{% static 'styles.css' %}">
     <!-- CodeMirror CSS -->
@@ -98,6 +128,12 @@
         <div>
             <button type="button" id="run-btn" class="btn">Run Code</button>
             <button type="submit" id="submit-btn" class="btn">Submit</button>
+        </div>
+        <div class="run-options">
+            <span id="toggle-test-case" class="test-case-toggle">+ Add Custom Test Case</span>
+            <div id="custom-test-input-container">
+                <textarea id="custom-test-input" placeholder="Enter your custom input here..."></textarea>
+            </div>
         </div>
         <div id="empty-code-error" class="empty-code-error">
             Please write some code before submitting.
@@ -133,6 +169,9 @@
         const submitBtn = document.getElementById('submit-btn');
         const resultContainer = document.getElementById('result-container');
         const emptyCodeError = document.getElementById('empty-code-error');
+        const toggleTestCase = document.getElementById('toggle-test-case');
+        const customTestInputContainer = document.getElementById('custom-test-input-container');
+        const customTestInput = document.getElementById('custom-test-input');
 
         if (languageSelect) {
             updateEditorMode();
@@ -148,6 +187,17 @@
             const mode = modeMap[languageSelect.value] || 'text/x-c++src';
             editor.setOption('mode', mode);
         }
+
+        // Toggle custom test case input
+        toggleTestCase.addEventListener('click', function() {
+            if (customTestInputContainer.style.display === 'block') {
+                customTestInputContainer.style.display = 'none';
+                toggleTestCase.textContent = '+ Add Custom Test Case';
+            } else {
+                customTestInputContainer.style.display = 'block';
+                toggleTestCase.textContent = '- Hide Custom Test Case';
+            }
+        });
 
         function validateAndSubmit(action) {
             editor.save();
@@ -167,6 +217,11 @@
             formData.append('code', code);
             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
             formData.append('action', action);
+            
+            // Add custom input if provided
+            if (customTestInputContainer.style.display === 'block' && customTestInput.value.trim()) {
+                formData.append('custom_input', customTestInput.value.trim());
+            }
             
             resultContainer.style.display = 'block';
             document.getElementById('result-verdict').textContent = "Running...";
