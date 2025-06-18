@@ -1,5 +1,7 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from submit.forms import CodeSubmissionForm
 from django.conf import settings
 from problems.models import Problem
@@ -23,9 +25,7 @@ def get_ai_review(code, language, problem_description=None):
         return "AI review unavailable (API key not configured)"
     
     try:
-        # Updated model name to gemini-1.0-pro
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
+        model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""Provide a concise code review for this {language} submission:
         1. Identify 2-3 key strengths
         2. Suggest 2-3 specific improvements
@@ -42,14 +42,21 @@ def get_ai_review(code, language, problem_description=None):
         
         response = model.generate_content(prompt)
         return response.text
-        
     except Exception as e:
-        # More specific error handling
-        if "404" in str(e) and "models/gemini-pro" in str(e):
-            return "AI review unavailable: Please update the model name in server configuration"
         return f"AI review unavailable: {str(e)}"
-    
+
+@login_required(login_url='/auth/login/')  # Changed to /auth/login/
 def submit(request, id):
+    if not request.user.is_authenticated:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'auth_required': True,
+                'message': 'Please sign in to submit code',
+                'login_url': '/auth/login/',  # Changed to /auth/login/
+                'register_url': '/auth/register/'  # Changed to /auth/register/
+            }, status=401)
+        messages.warning(request, 'Please sign in to submit code')
+        return redirect(f'/auth/login/?next=/submit/{id}/')  # Changed to /auth/login/
     if request.method == "POST":
         form = CodeSubmissionForm(request.POST)
         if form.is_valid():
